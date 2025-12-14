@@ -924,3 +924,64 @@ footer a:hover {
     margin-top: 4px;
     justify-content: flex-start;
 }
+
+/* Стили для кода субъекта */
+.result-detail-compact.subject {
+    background: #e8eaf6;
+    color: #3949ab;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    width: auto;
+    padding: 0 8px;
+    border-radius: 10px;
+}
+
+/* Тултипы для кода субъекта */
+.result-detail-compact.subject[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    margin-bottom: 5px;
+    max-width: 300px;
+    word-wrap: break-word;
+    white-space: normal;
+    text-align: center;
+}
+
+.result-detail-compact.subject[title]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
+    z-index: 1000;
+    pointer-events: none;
+    margin-bottom: -5px;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 600px) {
+    .result-detail-compact.subject {
+        font-size: 0.8em;
+        padding: 0 6px;
+    }
+    
+    .result-detail-compact.subject[title]:hover::after {
+        font-size: 0.75em;
+        padding: 4px 8px;
+        max-width: 250px;
+    }
+}

@@ -72,7 +72,7 @@ function initFilters() {
         sortedSubjects.forEach(([code, name]) => {
             const option = document.createElement('option');
             option.value = code;
-            option.textContent = `${code} - ${name}`;
+            option.textContent = `${code} - ${name}`; // Показываем и код и название в фильтре
             filterSubject.appendChild(option);
         });
     }
@@ -274,9 +274,9 @@ function updateResultsUI(results, searchTerm) {
     table.innerHTML = `
         <thead>
             <tr>
-                <th width="120">Код</th>
+                <th width="120">Код ОКТМО</th>
                 <th>Наименование</th>
-                <th width="110">Инфо</th>
+                <th width="140">Информация</th>
                 <th width="130">Действия</th>
             </tr>
         </thead>
@@ -356,11 +356,11 @@ function createResultRow(item, searchTerm) {
         </td>
         <td>
             <div class="result-details-compact">
-                <span class="result-detail-compact ${typeClass}" title="Тип объекта">
+                <span class="result-detail-compact ${typeClass}" title="Тип объекта: ${typeName}">
                     ${item.type === 1 ? '🏢' : '🏠'}
                 </span>
-                <span class="result-detail-compact subject" title="${subjectName}">
-                    📍
+                <span class="result-detail-compact subject" title="Субъект РФ: ${subjectName}">
+                    ${item.subject}
                 </span>
                 <span class="result-detail-compact date" title="Дата введения: ${item.date}">
                     📅
