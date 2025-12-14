@@ -263,7 +263,7 @@ function updateResultsUI(results, searchTerm) {
     resultsHeader.className = 'results-header';
     resultsHeader.innerHTML = `
         <div class="results-count">
-            Найдено <strong>${totalResults}</strong> записей ${searchTerm && searchTerm !== 'initial' ? `по запросу "${escapeHtml(searchTerm)}"` : ''}
+            <strong>${totalResults}</strong> записей ${searchTerm && searchTerm !== 'initial' ? `по запросу "${escapeHtml(searchTerm)}"` : ''}
         </div>
     `;
     resultsContainer.appendChild(resultsHeader);
@@ -274,10 +274,10 @@ function updateResultsUI(results, searchTerm) {
     table.innerHTML = `
         <thead>
             <tr>
-                <th width="120">Код ОКТМО</th>
+                <th width="120">Код</th>
                 <th>Наименование</th>
-                <th width="200">Информация</th>
-                <th width="150">Действия</th>
+                <th width="110">Инфо</th>
+                <th width="130">Действия</th>
             </tr>
         </thead>
         <tbody id="resultsBody"></tbody>
@@ -357,36 +357,31 @@ function createResultRow(item, searchTerm) {
         <td>
             <div class="result-details-compact">
                 <span class="result-detail-compact ${typeClass}" title="Тип объекта">
-                    ${item.type === 1 ? '🏢' : '🏠'} ${typeName}
+                    ${item.type === 1 ? '🏢' : '🏠'}
                 </span>
-                <span class="result-detail-compact subject" title="Субъект РФ">
-                    📍 ${subjectName.substring(0, 15)}${subjectName.length > 15 ? '...' : ''}
+                <span class="result-detail-compact subject" title="${subjectName}">
+                    📍
                 </span>
-            </div>
-            <div class="result-details-compact">
-                <span class="result-detail-compact date" title="Дата введения">
-                    📅 ${item.date}
+                <span class="result-detail-compact date" title="Дата введения: ${item.date}">
+                    📅
                 </span>
             </div>
         </td>
         <td>
             <div class="result-actions-compact">
-                <button class="action-btn-compact copy-btn" title="Копировать код ${item.code}" data-code="${item.code}">
-                    <span class="btn-icon">📋</span>
-                    <span class="btn-text">Копировать</span>
+                <button class="action-btn-icon copy-btn" title="Копировать код ${item.code}" data-code="${item.code}">
+                    📋
                 </button>
                 ${item.type === 2 ? `
-                    <button class="action-btn-compact parent-btn" title="Найти муниципалитет ${item.code.substring(0, 8)}" data-parent="${item.code.substring(0, 8)}">
-                        <span class="btn-icon">🔍</span>
-                        <span class="btn-text">МО</span>
+                    <button class="action-btn-icon parent-btn" title="Найти муниципалитет ${item.code.substring(0, 8)}" data-parent="${item.code.substring(0, 8)}">
+                        🔍
                     </button>
                 ` : ''}
                 <a href="https://ivo.garant.ru/#/basesearch/октмо%20${encodeURIComponent(formattedCode)}" 
-                   target="_blank" 
-                   class="action-btn-compact garant-btn" 
-                   title="Поиск в системе ГАРАНТ">
-                    <span class="btn-icon">🏛️</span>
-                    <span class="btn-text">ГАРАНТ</span>
+                target="_blank" 
+                class="action-btn-icon garant-btn" 
+                title="Поиск в системе ГАРАНТ">
+                    🏛️
                 </a>
             </div>
         </td>
@@ -448,20 +443,25 @@ function highlightMatch(text, searchTerm) {
     return textStr.replace(regex, '<mark>$1</mark>');
 }
 
-// Копирование в буфер обмена
+// Копирование в буфер обмена - ТОЛЬКО ИКОНКИ
 function copyToClipboard(text, button) {
     navigator.clipboard.writeText(text).then(() => {
-        const originalText = button.textContent;
-        button.textContent = '✓ Скопировано!';
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '✓';
         button.classList.add('copied');
+        button.title = 'Скопировано!';
         
         setTimeout(() => {
-            button.textContent = originalText;
+            button.innerHTML = originalIcon;
             button.classList.remove('copied');
-        }, 2000);
+            button.title = `Копировать код ${text}`;
+        }, 1500);
     }).catch(err => {
         console.error('Ошибка копирования:', err);
-        alert('Не удалось скопировать код. Пожалуйста, скопируйте вручную: ' + text);
+        button.innerHTML = '❌';
+        setTimeout(() => {
+            button.innerHTML = '📋';
+        }, 1000);
     });
 }
 

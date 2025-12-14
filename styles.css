@@ -804,3 +804,123 @@ footer a:hover {
     align-items: center;
     gap: 4px;
 }
+
+/* Кнопки-иконки (только иконки) */
+.result-actions-compact {
+    display: flex;
+    gap: 8px;
+    margin-top: 0;
+}
+
+.action-btn-icon {
+    width: 32px;
+    height: 32px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    padding: 0;
+}
+
+.action-btn-icon:hover {
+    background: #6a1b9a;
+    color: white;
+    border-color: #6a1b9a;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(106, 27, 154, 0.2);
+}
+
+.action-btn-icon.copy-btn {
+    background: #e8eaf6;
+    border-color: #c5cae9;
+}
+
+.action-btn-icon.copy-btn:hover {
+    background: #3949ab;
+}
+
+.action-btn-icon.copy-btn.copied {
+    background: #4caf50;
+    border-color: #388e3c;
+    color: white;
+    animation: pulse 0.5s;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.action-btn-icon.garant-btn {
+    background: #e3f2fd;
+    border-color: #bbdefb;
+}
+
+.action-btn-icon.garant-btn:hover {
+    background: #1565c0;
+}
+
+.action-btn-icon.parent-btn {
+    background: #f3e5f5;
+    border-color: #e1bee7;
+}
+
+.action-btn-icon.parent-btn:hover {
+    background: #6a1b9a;
+}
+
+/* Убираем текст полностью */
+.btn-text {
+    display: none !important;
+}
+
+/* Улучшаем отображение иконок в деталях */
+.result-detail-compact {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: #f5f5f5;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.result-detail-compact.municipal-type {
+    background: #e1bee7;
+    color: #4a148c;
+}
+
+.result-detail-compact.settlement-type {
+    background: #b2ebf2;
+    color: #006064;
+}
+
+.result-detail-compact.subject {
+    background: #e8eaf6;
+    color: #3949ab;
+}
+
+.result-detail-compact.date {
+    background: #f5f5f5;
+    color: #666;
+}
+
+/* Центрируем иконки в деталях */
+.result-details-compact {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    justify-content: flex-start;
+}
