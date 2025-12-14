@@ -274,11 +274,10 @@ function updateResultsUI(results, searchTerm) {
     table.innerHTML = `
         <thead>
             <tr>
-                <th width="150">Код ОКТМО</th>
+                <th width="120">Код ОКТМО</th>
                 <th>Наименование</th>
-                <th width="100">Тип</th>
-                <th width="120">Субъект РФ</th>
-                <th width="100">Действия</th>
+                <th width="200">Информация</th>
+                <th width="150">Действия</th>
             </tr>
         </thead>
         <tbody id="resultsBody"></tbody>
@@ -310,7 +309,7 @@ function updateResultsUI(results, searchTerm) {
     }
 }
 
-// Создание строки результата
+// Создание строки результата - ОБНОВЛЕННАЯ ВЕРСИЯ
 function createResultRow(item, searchTerm) {
     const row = document.createElement('tr');
     row.className = `result-item ${item.type === 1 ? 'municipal' : 'settlement'}`;
@@ -338,38 +337,56 @@ function createResultRow(item, searchTerm) {
         highlightedName = highlightMatch(item.name, searchTerm);
     }
     
-    // Определяем бейдж для типа кода
-    const codeBadgeClass = item.type === 1 ? 'municipal-badge' : 'settlement-badge';
-    const codeBadgeText = item.type === 1 ? '8 знаков' : '11 знаков';
+    // УБРАНО: код бейджа типа кода (было: codeBadgeClass, codeBadgeText)
+    
+    // Компактное отображение названия (с ограничением по высоте)
+    const displayName = item.name.length > 60 ? 
+        item.name.substring(0, 57) + '...' : 
+        item.name;
     
     row.innerHTML = `
         <td>
-            <div class="result-code-container">
+            <div class="result-code-container" data-tooltip="${item.type === 1 ? 'Муниципальное образование (8 знаков)' : 'Населенный пункт (11 знаков)'}">
                 <span class="result-code">${highlightedCode}</span>
-                <span class="code-format-badge ${codeBadgeClass}">${codeBadgeText}</span>
             </div>
         </td>
         <td>
-            <div class="result-name">${highlightedName}</div>
-            ${item.center ? `<div class="result-center">Адм. центр: ${item.center}</div>` : ''}
-            <div class="result-date">Действует с: ${item.date}</div>
-        </td>
-        <td><span class="result-type ${typeClass}">${typeName}</span></td>
-        <td>
-            <div class="result-subject">${subjectName}</div>
-            <div class="result-subject-code">${item.subject}</div>
+            <div class="result-name result-name-compact" title="${item.name}">${highlightedName}</div>
+            ${item.center ? `<div class="result-center-compact" title="Административный центр">🏛️ ${item.center}</div>` : ''}
         </td>
         <td>
-            <div class="result-actions">
-                <button class="action-btn copy-btn" title="Копировать код" data-code="${item.code}">
-                    📋 Копировать
+            <div class="result-details-compact">
+                <span class="result-detail-compact ${typeClass}" title="Тип объекта">
+                    ${item.type === 1 ? '🏢' : '🏠'} ${typeName}
+                </span>
+                <span class="result-detail-compact subject" title="Субъект РФ">
+                    📍 ${subjectName.substring(0, 15)}${subjectName.length > 15 ? '...' : ''}
+                </span>
+            </div>
+            <div class="result-details-compact">
+                <span class="result-detail-compact date" title="Дата введения">
+                    📅 ${item.date}
+                </span>
+            </div>
+        </td>
+        <td>
+            <div class="result-actions-compact">
+                <button class="action-btn-compact copy-btn" title="Копировать код ${item.code}" data-code="${item.code}">
+                    <span class="btn-icon">📋</span>
+                    <span class="btn-text">Копировать</span>
                 </button>
-                ${item.type === 2 ? `<button class="action-btn parent-btn" title="Найти муниципалитет" data-parent="${item.code.substring(0, 8)}">🔍 МО</button>` : ''}
+                ${item.type === 2 ? `
+                    <button class="action-btn-compact parent-btn" title="Найти муниципалитет ${item.code.substring(0, 8)}" data-parent="${item.code.substring(0, 8)}">
+                        <span class="btn-icon">🔍</span>
+                        <span class="btn-text">МО</span>
+                    </button>
+                ` : ''}
                 <a href="https://ivo.garant.ru/#/basesearch/октмо%20${encodeURIComponent(formattedCode)}" 
                    target="_blank" 
-                   class="action-btn garant-btn" 
-                   title="Поиск в ГАРАНТ">
-                    🏛️ ГАРАНТ
+                   class="action-btn-compact garant-btn" 
+                   title="Поиск в системе ГАРАНТ">
+                    <span class="btn-icon">🏛️</span>
+                    <span class="btn-text">ГАРАНТ</span>
                 </a>
             </div>
         </td>

@@ -305,198 +305,228 @@ h1 {
     font-style: normal;
 }
 
-/* Элемент результата */
-.result-item {
+/* Заголовок результатов */
+.results-header {
     padding: 15px;
-    border-bottom: 1px solid #f0f0f0;
-    transition: all 0.2s;
+    background: #f5f0ff;
+    border-bottom: 1px solid #e8e1f5;
+    border-radius: 8px 8px 0 0;
 }
 
-.result-item:last-child {
+.results-count {
+    color: #4a148c;
+    font-size: 0.95em;
+    margin: 0;
+}
+
+.results-count strong {
+    color: #6a1b9a;
+}
+
+/* Таблица результатов */
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.results-table th {
+    text-align: left;
+    padding: 12px 15px;
+    background: #f5f0ff;
+    color: #4a148c;
+    font-weight: 600;
+    font-size: 0.9em;
+    border-bottom: 2px solid #e1bee7;
+    white-space: nowrap;
+}
+
+.results-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: top;
+}
+
+.results-table tr:last-child td {
     border-bottom: none;
 }
 
-.result-item:hover {
+.results-table tr:hover {
     background-color: #f9f5ff;
 }
 
-/* Цвета для типов объектов */
+/* Элемент результата */
 .result-item.municipal {
-    border-left: 4px solid #6a1b9a; /* Фиолетовый для МО */
-    background: linear-gradient(to right, #f9f5ff, white);
+    border-left: 3px solid #6a1b9a; /* Фиолетовый для МО */
 }
 
 .result-item.settlement {
-    border-left: 4px solid #0097a7; /* Бирюзовый для населенных пунктов */
-    background: linear-gradient(to right, #f0f9fa, white);
+    border-left: 3px solid #0097a7; /* Бирюзовый для населенных пунктов */
 }
 
-/* Контейнер кода и названия */
-.result-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-
+/* Контейнер кода - УПРОЩЕН */
 .result-code-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    display: block;
 }
 
 .result-code {
     font-family: 'Courier New', monospace;
     font-weight: bold;
     color: #6a1b9a;
-    font-size: 1.1em;
+    font-size: 1em;
     letter-spacing: 0.5px;
+    display: inline-block;
+    background: #f5f0ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: 4px;
 }
 
-/* Бейдж типа кода */
-.code-format-badge {
-    font-size: 0.75em;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-weight: 500;
+.result-item.settlement .result-code {
+    color: #0097a7;
+    background: #f0f9fa;
 }
 
-.code-format-badge.municipal-badge {
-    background: #e1bee7;
-    color: #4a148c;
-}
+/* БЕЙДЖИ УБРАНЫ - больше не показываем "8 знаков"/"11 знаков" */
 
-.code-format-badge.settlement-badge {
-    background: #b2ebf2;
-    color: #006064;
-}
-
-/* Название объекта */
+/* Название объекта - УЛУЧШЕНО */
 .result-name {
     color: #333;
-    font-size: 1.05em;
+    font-size: 1em;
     font-weight: 500;
     line-height: 1.4;
-    flex-grow: 1;
-    margin-bottom: 10px;
+    margin: 8px 0;
 }
 
-/* Детали результата */
-.result-details {
+.result-name-compact {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Компактное отображение деталей */
+.result-details-compact {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 8px;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 0.8em;
 }
 
-.result-detail {
-    font-size: 0.85em;
-    padding: 4px 10px;
-    border-radius: 12px;
+.result-detail-compact {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-}
-
-/* Тип объекта */
-.result-type {
-    background: #f3e5f5;
-    color: #6a1b9a;
-}
-
-.result-type.municipal-type {
-    background: #e1bee7;
-    color: #4a148c;
-}
-
-.result-type.settlement-type {
-    background: #b2ebf2;
-    color: #006064;
-}
-
-/* Субъект РФ */
-.result-subject {
-    background: #e8eaf6;
-    color: #3949ab;
-}
-
-/* Дата */
-.result-date {
+    padding: 2px 8px;
+    border-radius: 10px;
     background: #f5f5f5;
     color: #666;
 }
 
-/* Административный центр (только для МО) */
-.result-center {
-    background: #fff3e0;
-    color: #ef6c00;
-    font-style: italic;
+.result-detail-compact.municipal-type {
+    background: #e1bee7;
+    color: #4a148c;
 }
 
-/* Кнопки действий */
-.result-actions {
+.result-detail-compact.settlement-type {
+    background: #b2ebf2;
+    color: #006064;
+}
+
+.result-detail-compact.subject {
+    background: #e8eaf6;
+    color: #3949ab;
+}
+
+.result-detail-compact.date {
+    background: #f5f5f5;
+    color: #666;
+}
+
+/* Административный центр (только для МО) - компактный */
+.result-center-compact {
+    font-size: 0.85em;
+    color: #ef6c00;
+    margin-top: 4px;
+    padding-left: 8px;
+    border-left: 2px solid #ffcc80;
+    display: inline-block;
+}
+
+/* Кнопки действий - КОМПАКТНЫЕ */
+.result-actions-compact {
     display: flex;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 6px;
+    margin-top: 8px;
     flex-wrap: wrap;
 }
 
-.action-btn {
+.action-btn-compact {
     background: #f8f9fa;
     border: 1px solid #ddd;
     border-radius: 4px;
-    padding: 6px 12px;
+    padding: 4px 8px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 0.8em;
     transition: all 0.2s;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     color: #666;
+    white-space: nowrap;
 }
 
-.action-btn:hover {
+.action-btn-compact:hover {
     background: #6a1b9a;
     color: white;
     border-color: #6a1b9a;
     transform: translateY(-1px);
 }
 
-.copy-btn {
+.action-btn-compact.copy-btn {
     background: #e8eaf6;
     border-color: #c5cae9;
 }
 
-.copy-btn:hover {
+.action-btn-compact.copy-btn:hover {
     background: #3949ab;
 }
 
-.copy-btn.copied {
+.action-btn-compact.copy-btn.copied {
     background: #4caf50;
     border-color: #388e3c;
     color: white;
 }
 
-.garant-btn {
+.action-btn-compact.garant-btn {
     background: #e3f2fd;
     border-color: #bbdefb;
 }
 
-.garant-btn:hover {
+.action-btn-compact.garant-btn:hover {
     background: #1565c0;
 }
 
-.parent-btn {
+.action-btn-compact.parent-btn {
     background: #f3e5f5;
     border-color: #e1bee7;
 }
 
-.parent-btn:hover {
+.action-btn-compact.parent-btn:hover {
     background: #6a1b9a;
+}
+
+/* ИКОНКИ вместо текста - для экономии места */
+.btn-icon {
+    font-size: 1em;
+    min-width: 1.2em;
+    text-align: center;
+}
+
+.btn-text {
+    display: none; /* Скрываем текст на десктопе */
 }
 
 /* Подсветка совпадений */
@@ -573,23 +603,40 @@ footer a:hover {
         padding: 15px;
     }
     
-    .result-header {
-        flex-direction: column;
-        gap: 8px;
+    .results-table {
+        display: block;
+        overflow-x: auto;
     }
     
-    .result-details {
-        gap: 8px;
+    .results-table th,
+    .results-table td {
+        padding: 8px 10px;
+        font-size: 0.9em;
     }
     
-    .result-detail {
+    .result-name {
+        font-size: 0.95em;
+    }
+    
+    .result-details-compact {
+        gap: 6px;
+    }
+    
+    .result-detail-compact {
+        font-size: 0.75em;
+        padding: 2px 6px;
+    }
+    
+    .action-btn-compact {
+        padding: 3px 6px;
+        font-size: 0.75em;
+    }
+    
+    /* На мобильных показываем текст кнопок */
+    .btn-text {
+        display: inline;
         font-size: 0.8em;
-        padding: 3px 8px;
-    }
-    
-    .action-btn {
-        font-size: 0.85em;
-        padding: 5px 10px;
+        margin-left: 2px;
     }
     
     .info-block {
@@ -611,6 +658,12 @@ footer a:hover {
     .show-all-btn {
         width: 100%;
     }
+    
+    /* На мобильных сворачиваем таблицу */
+    .results-table th:nth-child(4),
+    .results-table td:nth-child(4) {
+        display: none; /* Скрываем столбец субъекта на мобильных */
+    }
 }
 
 @media (max-width: 400px) {
@@ -619,16 +672,16 @@ footer a:hover {
     }
     
     .result-code {
-        font-size: 1em;
+        font-size: 0.9em;
     }
     
     .result-name {
-        font-size: 1em;
+        font-size: 0.9em;
     }
     
-    .action-btn {
-        padding: 4px 8px;
-        font-size: 0.8em;
+    .action-btn-compact {
+        padding: 2px 4px;
+        font-size: 0.7em;
     }
     
     .filter-group label {
@@ -638,4 +691,116 @@ footer a:hover {
     #filterSubject {
         max-width: 100%;
     }
+    
+    /* На очень маленьких экранах сворачиваем еще больше */
+    .results-table th:nth-child(3),
+    .results-table td:nth-child(3) {
+        display: none; /* Скрываем столбец типа на очень маленьких экранах */
+    }
+    
+    .results-table th,
+    .results-table td {
+        padding: 6px 8px;
+    }
+}
+
+/* ==================== ТУЛТИПЫ (всплывающие подсказки) ==================== */
+
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+[data-tooltip]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
+    z-index: 1000;
+    pointer-events: none;
+    margin-bottom: -5px;
+}
+
+/* Компактные тултипы для кнопок */
+.action-btn-compact[title] {
+    position: relative;
+}
+
+.action-btn-compact[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 0.75em;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    margin-bottom: 4px;
+}
+
+/* Добавить в CSS */
+.result-name-compact {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 2.8em;
+    line-height: 1.4em;
+}
+
+.result-details-compact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 0.8em;
+}
+
+.result-detail-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #f5f5f5;
+    color: #666;
+    white-space: nowrap;
+}
+
+.result-center-compact {
+    font-size: 0.85em;
+    color: #ef6c00;
+    margin-top: 4px;
+    padding-left: 8px;
+    border-left: 2px solid #ffcc80;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
