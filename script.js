@@ -214,7 +214,7 @@ function searchByName(item, searchTerm) {
     }
 }
 
-// Обновление интерфейса с результатами
+// Обновление интерфейса с результатами - КАРТОЧКИ
 function updateResultsUI(results, searchTerm) {
     const totalResults = results.length;
     const showResults = results.slice(0, currentShowLimit);
@@ -258,7 +258,7 @@ function updateResultsUI(results, searchTerm) {
     // Показываем контейнер
     resultsContainer.classList.add('show');
     
-    // Добавляем сообщение о количестве результатов
+    // Добавляем заголовок с количеством результатов
     const resultsHeader = document.createElement('div');
     resultsHeader.className = 'results-header';
     resultsHeader.innerHTML = `
@@ -268,28 +268,16 @@ function updateResultsUI(results, searchTerm) {
     `;
     resultsContainer.appendChild(resultsHeader);
     
-    // Создаем таблицу для результатов
-    const table = document.createElement('table');
-    table.className = 'results-table';
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th width="120">Код ОКТМО</th>
-                <th>Наименование</th>
-                <th width="140">Информация</th>
-                <th width="130">Действия</th>
-            </tr>
-        </thead>
-        <tbody id="resultsBody"></tbody>
-    `;
-    resultsContainer.appendChild(table);
+    // Создаем контейнер для карточек
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'cards-container';
+    cardsContainer.id = 'cardsContainer';
+    resultsContainer.appendChild(cardsContainer);
     
-    const resultsBody = document.getElementById('resultsBody');
-    
-    // Заполняем таблицу
+    // Заполняем карточками
     showResults.forEach(item => {
-        const row = createResultRow(item, searchTerm);
-        resultsBody.appendChild(row);
+        const card = createResultCard(item, searchTerm);
+        cardsContainer.appendChild(card);
     });
     
     // Добавляем сообщение о пагинации
@@ -309,10 +297,10 @@ function updateResultsUI(results, searchTerm) {
     }
 }
 
-// Создание строки результата - ОБНОВЛЕННАЯ ВЕРСИЯ
-function createResultRow(item, searchTerm) {
-    const row = document.createElement('tr');
-    row.className = `result-item ${item.type === 1 ? 'municipal' : 'settlement'}`;
+// Создание карточки результата - НОВАЯ ВЕРСИЯ
+function createResultCard(item, searchTerm) {
+    const card = document.createElement('div');
+    card.className = `card ${item.type === 1 ? 'municipal' : 'settlement'}`;
     
     // Форматируем код с пробелами
     const formattedCode = formatOktmoCode(item.code);
@@ -321,8 +309,8 @@ function createResultRow(item, searchTerm) {
     const subjectName = allSubjects[item.subject] || `Субъект ${item.subject}`;
     
     // Определяем тип объекта
-    const typeName = item.type === 1 ? 'МО' : 'Населенный пункт';
-    const typeClass = item.type === 1 ? 'municipal-type' : 'settlement-type';
+    const typeName = item.type === 1 ? 'Муниципальное образование' : 'Населенный пункт';
+    const typeIcon = item.type === 1 ? '🏢' : '🏠';
     
     // Подсветка совпадений в коде
     let highlightedCode = formattedCode;
@@ -337,59 +325,53 @@ function createResultRow(item, searchTerm) {
         highlightedName = highlightMatch(item.name, searchTerm);
     }
     
-    // УБРАНО: код бейджа типа кода (было: codeBadgeClass, codeBadgeText)
-    
-    // Компактное отображение названия (с ограничением по высоте)
-    const displayName = item.name.length > 60 ? 
-        item.name.substring(0, 57) + '...' : 
-        item.name;
-    
-    row.innerHTML = `
-        <td>
-            <div class="result-code-container" data-tooltip="${item.type === 1 ? 'Муниципальное образование (8 знаков)' : 'Населенный пункт (11 знаков)'}">
-                <span class="result-code">${highlightedCode}</span>
-            </div>
-        </td>
-        <td>
-            <div class="result-name result-name-compact" title="${item.name}">${highlightedName}</div>
-            ${item.center ? `<div class="result-center-compact" title="Административный центр">🏛️ ${item.center}</div>` : ''}
-        </td>
-        <td>
-            <div class="result-details-compact">
-                <span class="result-detail-compact ${typeClass}" title="Тип объекта: ${typeName}">
-                    ${item.type === 1 ? '🏢' : '🏠'}
+    // Создаем карточку
+    card.innerHTML = `
+        <div class="card-content">
+            <div class="card-header">
+                <span class="card-code" title="${item.type === 1 ? 'Муниципальное образование (8 знаков)' : 'Населенный пункт (11 знаков)'}">
+                    ${highlightedCode}
                 </span>
-                <span class="result-detail-compact subject" title="Субъект РФ: ${subjectName}">
+                <span class="card-name">${highlightedName}</span>
+            </div>
+            ${item.center ? `
+                <div class="card-center" title="Административный центр">
+                    🏛️ ${item.center}
+                </div>
+            ` : ''}
+            <div class="card-details">
+                <span class="card-detail" title="${typeName}">
+                    ${typeIcon} ${item.type === 1 ? 'МО' : 'Нас.пункт'}
+                </span>
+                <span class="card-detail card-subject" title="Субъект РФ: ${subjectName}">
                     ${item.subject}
                 </span>
-                <span class="result-detail-compact date" title="Дата введения: ${item.date}">
-                    📅
+                <span class="card-detail" title="Действует с: ${item.date}">
+                    📅 ${item.date}
                 </span>
             </div>
-        </td>
-        <td>
-            <div class="result-actions-compact">
-                <button class="action-btn-icon copy-btn" title="Копировать код ${item.code}" data-code="${item.code}">
+            <div class="card-actions">
+                <button class="card-btn copy-btn" title="Копировать код ${item.code}" data-code="${item.code}">
                     📋
                 </button>
                 ${item.type === 2 ? `
-                    <button class="action-btn-icon parent-btn" title="Найти муниципалитет ${item.code.substring(0, 8)}" data-parent="${item.code.substring(0, 8)}">
-                        🔍
+                    <button class="card-btn parent-btn" title="Найти муниципалитет ${item.code.substring(0, 8)}" data-parent="${item.code.substring(0, 8)}">
+                        🔍 МО
                     </button>
                 ` : ''}
                 <a href="https://ivo.garant.ru/#/basesearch/октмо%20${encodeURIComponent(formattedCode)}" 
-                target="_blank" 
-                class="action-btn-icon garant-btn" 
-                title="Поиск в системе ГАРАНТ">
-                    🏛️
+                   target="_blank" 
+                   class="card-btn garant-btn" 
+                   title="Поиск в системе ГАРАНТ">
+                    🏛️ ГАРАНТ
                 </a>
             </div>
-        </td>
+        </div>
     `;
     
     // Добавляем обработчики для кнопок
-    const copyBtn = row.querySelector('.copy-btn');
-    const parentBtn = row.querySelector('.parent-btn');
+    const copyBtn = card.querySelector('.copy-btn');
+    const parentBtn = card.querySelector('.parent-btn');
     
     copyBtn.addEventListener('click', () => copyToClipboard(item.code, copyBtn));
     
@@ -401,7 +383,7 @@ function createResultRow(item, searchTerm) {
         });
     }
     
-    return row;
+    return card;
 }
 
 // Форматирование кода ОКТМО с пробелами
@@ -443,24 +425,22 @@ function highlightMatch(text, searchTerm) {
     return textStr.replace(regex, '<mark>$1</mark>');
 }
 
-// Копирование в буфер обмена - ТОЛЬКО ИКОНКИ
+// Копирование в буфер обмена - для карточек
 function copyToClipboard(text, button) {
     navigator.clipboard.writeText(text).then(() => {
-        const originalIcon = button.innerHTML;
-        button.innerHTML = '✓';
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '✓ Скопировано!';
         button.classList.add('copied');
-        button.title = 'Скопировано!';
         
         setTimeout(() => {
-            button.innerHTML = originalIcon;
+            button.innerHTML = originalHTML;
             button.classList.remove('copied');
-            button.title = `Копировать код ${text}`;
         }, 1500);
     }).catch(err => {
         console.error('Ошибка копирования:', err);
-        button.innerHTML = '❌';
+        button.innerHTML = '❌ Ошибка';
         setTimeout(() => {
-            button.innerHTML = '📋';
+            button.innerHTML = '📋 Копировать';
         }, 1000);
     });
 }
