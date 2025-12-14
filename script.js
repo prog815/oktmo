@@ -352,7 +352,15 @@ function createResultCard(item, searchTerm) {
             </div>
             <div class="card-actions">
                 <button class="card-btn copy-btn" title="Копировать код ${item.code}" data-code="${item.code}">
-                    📋
+                    📋 Копировать
+                </button>
+                <button class="card-btn share-btn" title="Поделиться информацией" 
+                        data-code="${item.code}" 
+                        data-name="${item.name}"
+                        data-type="${typeName}"
+                        data-subject="${subjectName}"
+                        data-date="${item.date}">
+                    🔗 Поделиться
                 </button>
                 ${item.type === 2 ? `
                     <button class="card-btn parent-btn" title="Найти муниципалитет ${item.code.substring(0, 8)}" data-parent="${item.code.substring(0, 8)}">
@@ -360,9 +368,9 @@ function createResultCard(item, searchTerm) {
                     </button>
                 ` : ''}
                 <a href="https://ivo.garant.ru/#/basesearch/октмо%20${encodeURIComponent(formattedCode)}" 
-                   target="_blank" 
-                   class="card-btn garant-btn" 
-                   title="Поиск в системе ГАРАНТ">
+                target="_blank" 
+                class="card-btn garant-btn" 
+                title="Поиск в системе ГАРАНТ">
                     🏛️ ГАРАНТ
                 </a>
             </div>
@@ -382,8 +390,108 @@ function createResultCard(item, searchTerm) {
             performSearch();
         });
     }
+
+    // В конце createResultCard, после добавления других обработчиков:
+    const shareBtn = card.querySelector('.share-btn');
+    shareBtn.addEventListener('click', () => {
+        const shareData = {
+            code: shareBtn.dataset.code,
+            name: shareBtn.dataset.name,
+            type: shareBtn.dataset.type,
+            subject: shareBtn.dataset.subject,
+            date: shareBtn.dataset.date,
+            formattedCode: formatOktmoCode(shareBtn.dataset.code)
+        };
+        shareOktmoResult(shareData, shareBtn);
+    });
     
     return card;
+}
+
+/**
+ * Умная функция шаринга для ОКТМО
+ * На мобильных: показывает нативный диалог
+ * На десктопах: копирует в буфер с уведомлением
+ */
+async function shareOktmoResult(item, button) {
+    // Формируем текст для шаринга
+    const shareText = `🗺️ Код ОКТМО
+
+Код: ${item.formattedCode}
+Название: ${item.name}
+Тип: ${item.type}
+Субъект РФ: ${item.subject}
+Дата актуальности: ${item.date}
+
+🔍 Найдено в бесплатном справочнике ОКТМО:
+${window.location.href}`;
+
+    // Формируем данные для Web Share API
+    const shareData = {
+        title: `Код ОКТМО: ${item.formattedCode}`,
+        text: shareText,
+        url: window.location.href
+    };
+
+    try {
+        // Проверяем, поддерживает ли браузер Web Share API
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+            // Используем нативный диалог шаринга (мобильные)
+            await navigator.share(shareData);
+            showShareNotification('✅ Отправлено!', button);
+        } else {
+            // Десктопы или браузеры без поддержки Web Share API
+            await navigator.clipboard.writeText(shareText);
+            showShareNotification('✅ Скопировано в буфер!', button);
+        }
+    } catch (error) {
+        console.log('Ошибка шаринга:', error);
+        
+        // Запасной вариант для старых браузеров
+        if (error.name !== 'AbortError') {
+            await navigator.clipboard.writeText(shareText);
+            showShareNotification('✅ Скопировано в буфер!', button);
+        }
+    }
+}
+
+/**
+ * Показывает уведомление о шаринге рядом с кнопкой
+ */
+function showShareNotification(message, button) {
+    // Создаем элемент уведомления
+    const notification = document.createElement('div');
+    notification.className = 'share-notification';
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: absolute;
+        background: #4caf50;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        white-space: nowrap;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    // Позиционируем относительно кнопки
+    const rect = button.getBoundingClientRect();
+    notification.style.top = `${rect.top - 40}px`;
+    notification.style.left = `${rect.left}px`;
+    
+    document.body.appendChild(notification);
+    
+    // Удаляем уведомление через 2 секунды
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 2000);
 }
 
 // Форматирование кода ОКТМО с пробелами
