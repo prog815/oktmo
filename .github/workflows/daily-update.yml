@@ -2,97 +2,93 @@ name: Daily OKTMO Update
 
 on:
   schedule:
-    - cron: '0 12 * * *'   # ежедневно в 12:00 UTC
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-concurrency:
-  group: daily-oktmo-update
-  cancel-in-progress: false
+    - cron: '0 12 * * *'      # 12:00 UTC = 15:00 МСК
+  workflow_dispatch:          # ручной запуск
 
 jobs:
-  sync-data:
+  sync-and-trigger:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
+    permissions:
+      contents: write         # встроенный токен Actions для коммита
     env:
-      # Kaggle-тетрадка ОКТМО.
-      # Если slug другой — поменяй здесь.
-      KERNEL: eavprog/oktmo-classifier-downloader
-
-      OUTPUT_DIR: ./output
-      SRC_DIR: ./output/oktmo_data/web
+      # API-токен Kaggle НОВОГО образца (CLI >= 1.8.0).
+      # kaggle.json не нужен — CLI читает переменную окружения напрямую.
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN_OKTMO }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      - name: Install Kaggle CLI
-        run: pip install --quiet kaggle
-
-      - name: Build kaggle.json from secret
+      - name: Install Kaggle CLI с поддержкой API-токенов (>= 1.8.0)
         run: |
-          mkdir -p ~/.kaggle
-          echo '${{ secrets.KAGGLE_KEY }}' > ~/.kaggle/kaggle.json
-          chmod 600 ~/.kaggle/kaggle.json
+          pip install -q --upgrade kaggle
+          kaggle --version
+          python - <<'EOF'
+          import re, subprocess
+          out = subprocess.check_output(["kaggle", "--version"], text=True).strip()
+          m = re.search(r"(\d+)\.(\d+)", out)
+          assert m and tuple(map(int, m.groups())) >= (1, 8), \
+              f"нужен kaggle CLI >= 1.8.0 для API-токенов, получен: {out}"
+          print("OK: kaggle CLI поддерживает API-токены")
+          EOF
 
       - name: Download latest kernel output
         run: |
-          mkdir -p "$OUTPUT_DIR"
-          kaggle kernels output "$KERNEL" -p "$OUTPUT_DIR" || true
+          mkdir -p ./output
+          kaggle kernels output eavprog/oktmo-classifier-downloader -p ./output
+          echo "Содержимое output:"
+          find ./output -maxdepth 4 -type f | head -30
+          echo ""
+          echo "--- Попытка показать лог/диагностику тетрадки (если есть) ---"
+          for f in ./output/*.log ./output/*.txt ./output/__notebook*.ipynb; do
+            [ -f "$f" ] && { echo ">>> $f (last 50 lines) >>>"; tail -n 50 "$f"; echo "<<< $f <<<"; echo ""; }
+          done || true
 
-          echo "=== Файлы в output ==="
-          find "$OUTPUT_DIR" -maxdepth 4 -type f | head -30 || true
-
-          echo "=== Хвост лога тетрадки ==="
-          tail -60 "$OUTPUT_DIR"/*.log 2>/dev/null || true
-
-      - name: Copy web files to repo root
+      - name: Copy web files to repo root (не падает, ставит флаг)
         id: copy
         run: |
-          SRC="$SRC_DIR"
-          OK=1
-
+          # Тетрадка ОКТМО пишет файлы в /kaggle/working/oktmo_data/web/
+          SRC=./output/oktmo_data/web
+          MISSING=0
           for f in oktmo.json oktmo.json.gz oktmo_meta.json oktmo_meta.json.gz; do
-            if [ ! -s "$SRC/$f" ]; then
-              echo "::warning::Файл $f отсутствует или пуст — тетрадка упала или ещё не завершилась"
-              OK=0
+            if [ -f "$SRC/$f" ]; then
+              cp "$SRC/$f" "./$f"
+              echo "copied $f"
+            else
+              echo "::warning::MISSING $f в output тетрадки (тетрадка, вероятно, упала)"
+              MISSING=$((MISSING+1))
             fi
           done
-
-          if [ "$OK" = 0 ]; then
-            echo "has_files=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          if [ "$MISSING" -gt 0 ]; then
+            echo "❌ Отсутствует $MISSING из 4 файлов — коммит пропущен, сайт остаётся на последней хорошей версии"
+            echo "FILES_OK=false" >> "$GITHUB_ENV"
+          else
+            echo "✅ Все 4 файла на месте"
+            echo "FILES_OK=true" >> "$GITHUB_ENV"
           fi
-
-          cp -v "$SRC/oktmo.json" "$SRC/oktmo.json.gz" \
-                "$SRC/oktmo_meta.json" "$SRC/oktmo_meta.json.gz" .
-
-          echo "has_files=true" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push changes
-        if: steps.copy.outputs.has_files == 'true'
+        if: env.FILES_OK == 'true'
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
+          git config --local user.email "github-actions@github.com"
+          git config --local user.name "GitHub Actions"
           git add oktmo.json oktmo.json.gz oktmo_meta.json oktmo_meta.json.gz
-
           if git diff --cached --quiet; then
-            echo "Изменений в данных нет."
+            echo "✅ Изменений нет — данные уже актуальны"
           else
-            git commit -m "chore(data): auto-update OKTMO $(date -u +%F)"
-            git push origin "HEAD:${{ github.ref_name }}"
-            echo "✓ Данные обновлены и запушены"
+            SOURCE_DATE=$(python -c "import json;print(json.load(open('oktmo_meta.json')).get('source_date','?'))")
+            git commit -m "Auto-update: OKTMO data from kernel output (source $SOURCE_DATE) [skip ci]"
+            git push
+            echo "✅ Изменения запушены"
           fi
 
-      - name: Trigger new notebook run (fire-and-forget)
+      - name: Trigger new notebook run (fire-and-forget, всегда)
         if: always()
         run: |
-          echo "Запуск нового прогона тетрадки..."
-          rm -rf ./kernel
-          kaggle kernels pull -p ./kernel -m "$KERNEL" || true
-          kaggle kernels push -p ./kernel || true
-          echo "✓ Тетрадка запущена. Завершаю workflow."
+          mkdir -p ./nb
+          kaggle kernels pull eavprog/oktmo-classifier-downloader -p ./nb --metadata
+          kaggle kernels push -p ./nb
+          echo "✅ Тетрадка перезапущена (round-trip); workflow не ждёт её завершения"
