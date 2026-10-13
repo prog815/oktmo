@@ -1,0 +1,98 @@
+name: Daily OKTMO Update
+
+on:
+  schedule:
+    - cron: '0 12 * * *'   # ежедневно в 12:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-oktmo-update
+  cancel-in-progress: false
+
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Kaggle-тетрадка ОКТМО.
+      # Если slug другой — поменяй здесь.
+      KERNEL: eavprog/oktmo-classifier-downloader
+
+      OUTPUT_DIR: ./output
+      SRC_DIR: ./output/oktmo_data/web
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Kaggle CLI
+        run: pip install --quiet kaggle
+
+      - name: Build kaggle.json from secret
+        run: |
+          mkdir -p ~/.kaggle
+          echo '${{ secrets.KAGGLE_KEY }}' > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
+      - name: Download latest kernel output
+        run: |
+          mkdir -p "$OUTPUT_DIR"
+          kaggle kernels output "$KERNEL" -p "$OUTPUT_DIR" || true
+
+          echo "=== Файлы в output ==="
+          find "$OUTPUT_DIR" -maxdepth 4 -type f | head -30 || true
+
+          echo "=== Хвост лога тетрадки ==="
+          tail -60 "$OUTPUT_DIR"/*.log 2>/dev/null || true
+
+      - name: Copy web files to repo root
+        id: copy
+        run: |
+          SRC="$SRC_DIR"
+          OK=1
+
+          for f in oktmo.json oktmo.json.gz oktmo_meta.json oktmo_meta.json.gz; do
+            if [ ! -s "$SRC/$f" ]; then
+              echo "::warning::Файл $f отсутствует или пуст — тетрадка упала или ещё не завершилась"
+              OK=0
+            fi
+          done
+
+          if [ "$OK" = 0 ]; then
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          cp -v "$SRC/oktmo.json" "$SRC/oktmo.json.gz" \
+                "$SRC/oktmo_meta.json" "$SRC/oktmo_meta.json.gz" .
+
+          echo "has_files=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push changes
+        if: steps.copy.outputs.has_files == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add oktmo.json oktmo.json.gz oktmo_meta.json oktmo_meta.json.gz
+
+          if git diff --cached --quiet; then
+            echo "Изменений в данных нет."
+          else
+            git commit -m "chore(data): auto-update OKTMO $(date -u +%F)"
+            git push origin "HEAD:${{ github.ref_name }}"
+            echo "✓ Данные обновлены и запушены"
+          fi
+
+      - name: Trigger new notebook run (fire-and-forget)
+        if: always()
+        run: |
+          echo "Запуск нового прогона тетрадки..."
+          rm -rf ./kernel
+          kaggle kernels pull -p ./kernel -m "$KERNEL" || true
+          kaggle kernels push -p ./kernel || true
+          echo "✓ Тетрадка запущена. Завершаю workflow."
