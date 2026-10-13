@@ -13,8 +13,9 @@ jobs:
       contents: write         # встроенный токен Actions для коммита
     env:
       # API-токен Kaggle НОВОГО образца (CLI >= 1.8.0).
-      # kaggle.json не нужен — CLI читает переменную окружения напрямую.
-      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN_OKTMO }}
+      # В репозитории секрет называется KAGGLE_KEY, внутри него чистый токен.
+      # Kaggle CLI читает переменную окружения KAGGLE_API_TOKEN напрямую.
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
 
     steps:
       - name: Checkout repository
