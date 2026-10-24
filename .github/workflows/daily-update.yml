@@ -7,14 +7,13 @@ on:
 
 jobs:
   sync-and-trigger:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
-      contents: write         # встроенный токен Actions для коммита
+      contents: write
     env:
-      # API-токен Kaggle НОВОГО образца (CLI >= 1.8.0).
-      # В репозитории секрет называется KAGGLE_KEY, внутри него чистый токен.
-      # Kaggle CLI читает переменную окружения KAGGLE_API_TOKEN напрямую.
+      # API-токен Kaggle (CLI >= 1.8.0).
+      # В репозитории секрет называется KAGGLE_KEY, внутри — чистый токен.
       KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
 
     steps:
@@ -23,7 +22,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Kaggle CLI с поддержкой API-токенов (>= 1.8.0)
+      - name: Install Kaggle CLI (>= 1.8.0)
         run: |
           pip install -q --upgrade kaggle
           kaggle --version
@@ -48,21 +47,36 @@ jobs:
             [ -f "$f" ] && { echo ">>> $f (last 50 lines) >>>"; tail -n 50 "$f"; echo "<<< $f <<<"; echo ""; }
           done || true
 
-      - name: Copy web files to repo root (не падает, ставит флаг)
+      - name: Detect SRC and copy web files
         id: copy
         run: |
-          # Тетрадка ОКТМО пишет файлы в /kaggle/working/oktmo_data/web/
-          SRC=./output/oktmo_data/web
+          # Авто-детект SRC: §11 — голый ./output запрещён.
+          SRC=""
+          for cand in "./output/oktmo_data/web" "./output/web"; do
+            if [ -f "$cand/oktmo.json" ]; then
+              SRC="$cand"
+              break
+            fi
+          done
+
+          if [ -z "$SRC" ]; then
+            echo "::warning::Не найден oktmo.json ни в ./output/oktmo_data/web, ни в ./output/web"
+            echo "FILES_OK=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "✓ Авто-детект SRC: $SRC"
+
           MISSING=0
           for f in oktmo.json oktmo.json.gz oktmo_meta.json oktmo_meta.json.gz; do
             if [ -f "$SRC/$f" ]; then
               cp "$SRC/$f" "./$f"
               echo "copied $f"
             else
-              echo "::warning::MISSING $f в output тетрадки (тетрадка, вероятно, упала)"
+              echo "::warning::MISSING $f в $SRC (тетрадка, вероятно, упала)"
               MISSING=$((MISSING+1))
             fi
           done
+
           if [ "$MISSING" -gt 0 ]; then
             echo "❌ Отсутствует $MISSING из 4 файлов — коммит пропущен, сайт остаётся на последней хорошей версии"
             echo "FILES_OK=false" >> "$GITHUB_ENV"
@@ -71,22 +85,58 @@ jobs:
             echo "FILES_OK=true" >> "$GITHUB_ENV"
           fi
 
-      - name: Commit and push changes
+      - name: Check metadata (publish_allowed, critical_errors)
         if: env.FILES_OK == 'true'
+        run: |
+          python - <<'EOF'
+          import json, os, sys
+          m = json.load(open("oktmo_meta.json", encoding="utf-8"))
+          publish_allowed = m.get("publish_allowed", True)
+          critical = m.get("critical_errors") or []
+          warnings = m.get("warnings") or []
+
+          print(f"publish_allowed: {publish_allowed}")
+          print(f"critical_errors: {len(critical)}")
+          print(f"warnings:        {len(warnings)}")
+          print(f"current_change:  {m.get('current_change')}")
+          print(f"change_display:  {m.get('change_display')}")
+          print(f"records_count:   {m.get('records_count')}")
+          print(f"data_hash:       {m.get('data_hash')}")
+          print(f"data_hash_full:  {m.get('data_hash_full')}")
+
+          ok = bool(publish_allowed) and not critical
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+              f.write(f"META_OK={'true' if ok else 'false'}\n")
+
+          if not ok:
+              print("::warning::Мета говорит о запрете публикации — коммит пропущен")
+              sys.exit(0)
+          print("OK: публикация разрешена")
+          EOF
+
+      - name: Commit and push changes
+        if: env.FILES_OK == 'true' && env.META_OK == 'true'
         run: |
           git config --local user.email "github-actions@github.com"
           git config --local user.name "GitHub Actions"
           git add oktmo.json oktmo.json.gz oktmo_meta.json oktmo_meta.json.gz
           if git diff --cached --quiet; then
             echo "✅ Изменений нет — данные уже актуальны"
-          else
-            SOURCE_DATE=$(python -c "import json;print(json.load(open('oktmo_meta.json')).get('source_date','?'))")
-            git commit -m "Auto-update: OKTMO data from kernel output (source $SOURCE_DATE) [skip ci]"
-            git push
-            echo "✅ Изменения запушены"
+            exit 0
           fi
 
-      - name: Trigger new notebook run (fire-and-forget, всегда)
+          # §11: SOURCE_DATE одной строкой, цепочкой or, без heredoc
+          SOURCE_DATE=$(python -c "import json;m=json.load(open('oktmo_meta.json',encoding='utf-8'));print(m.get('source_date') or m.get('effective_date') or m.get('prepared_date') or m.get('generated_at') or '?')")
+          CHANGE_DISPLAY=$(python -c "import json;m=json.load(open('oktmo_meta.json',encoding='utf-8'));print(m.get('change_display') or '')")
+
+          echo "SOURCE_DATE=$SOURCE_DATE"
+          echo "CHANGE_DISPLAY=$CHANGE_DISPLAY"
+
+          git commit -m "Auto-update: OKTMO data (source $SOURCE_DATE) [skip ci]"
+          git push
+          echo "✅ Изменения запушены"
+
+      - name: Trigger new notebook run (fire-and-forget, always)
         if: always()
         run: |
           mkdir -p ./nb
