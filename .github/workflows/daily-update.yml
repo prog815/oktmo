@@ -1,8 +1,8 @@
-name: Daily OKTMO Update
+name: Weekly OKTMO Update
 
 on:
   schedule:
-    - cron: '0 12 * * *'      # 12:00 UTC = 15:00 МСК
+    - cron: '17 6 * * 2'      # 06:17 UTC = 09:17 МСК, вторник (слот ОКТМО из §3.2)
   workflow_dispatch:          # ручной запуск
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     permissions:
       contents: write
     env:
-      # API-токен Kaggle (CLI >= 1.8.0).
+      # Kaggle CLI >= 1.8.0 читает KAGGLE_API_TOKEN напрямую.
       # В репозитории секрет называется KAGGLE_KEY, внутри — чистый токен.
       KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
 
@@ -32,7 +32,7 @@ jobs:
           m = re.search(r"(\d+)\.(\d+)", out)
           assert m and tuple(map(int, m.groups())) >= (1, 8), \
               f"нужен kaggle CLI >= 1.8.0 для API-токенов, получен: {out}"
-          print("OK: kaggle CLI поддерживает API-токены")
+          print("OK: kaggle CLI >= 1.8.0")
           EOF
 
       - name: Download latest kernel output
@@ -40,34 +40,33 @@ jobs:
           mkdir -p ./output
           kaggle kernels output eavprog/oktmo-classifier-downloader -p ./output
           echo "Содержимое output:"
-          find ./output -maxdepth 4 -type f | head -30
+          find ./output -maxdepth 4 -type f | head -40
           echo ""
-          echo "--- Попытка показать лог/диагностику тетрадки (если есть) ---"
-          for f in ./output/*.log ./output/*.txt ./output/__notebook*.ipynb; do
+          echo "--- диагностика логов тетрадки (если есть) ---"
+          for f in ./output/oktmo_data/final/validation_report.json ./output/oktmo_data/diag/oktmo_diagnostics.json ./output/*.log ./output/*.txt; do
             [ -f "$f" ] && { echo ">>> $f (last 50 lines) >>>"; tail -n 50 "$f"; echo "<<< $f <<<"; echo ""; }
           done || true
 
-      - name: Detect SRC and copy web files
+      - name: Detect SRC and copy web files (.gz only)
         id: copy
         run: |
-          # Авто-детект SRC: §11 — голый ./output запрещён.
+          # Авто-детект по §3.1: oktmo_data/web (стандарт) → web (фоллбэк).
+          # Публикуются ТОЛЬКО .gz (fallback .json убран, §2.10).
           SRC=""
           for cand in "./output/oktmo_data/web" "./output/web"; do
-            if [ -f "$cand/oktmo.json" ]; then
+            if [ -f "$cand/oktmo.json.gz" ]; then
               SRC="$cand"
               break
             fi
           done
-
           if [ -z "$SRC" ]; then
-            echo "::warning::Не найден oktmo.json ни в ./output/oktmo_data/web, ни в ./output/web"
+            echo "::warning::oktmo.json.gz не найден ни в ./output/oktmo_data/web, ни в ./output/web"
             echo "FILES_OK=false" >> "$GITHUB_ENV"
             exit 0
           fi
-          echo "✓ Авто-детект SRC: $SRC"
-
+          echo "SRC=$SRC"
           MISSING=0
-          for f in oktmo.json oktmo.json.gz oktmo_meta.json oktmo_meta.json.gz; do
+          for f in oktmo.json.gz oktmo_meta.json.gz; do
             if [ -f "$SRC/$f" ]; then
               cp "$SRC/$f" "./$f"
               echo "copied $f"
@@ -76,42 +75,94 @@ jobs:
               MISSING=$((MISSING+1))
             fi
           done
-
           if [ "$MISSING" -gt 0 ]; then
-            echo "❌ Отсутствует $MISSING из 4 файлов — коммит пропущен, сайт остаётся на последней хорошей версии"
+            echo "❌ Отсутствует $MISSING из 2 .gz файлов — коммит пропущен, сайт остаётся на последней хорошей версии"
             echo "FILES_OK=false" >> "$GITHUB_ENV"
           else
-            echo "✅ Все 4 файла на месте"
+            echo "✅ Оба .gz файла на месте"
             echo "FILES_OK=true" >> "$GITHUB_ENV"
           fi
 
-      - name: Check metadata (publish_allowed, critical_errors)
+      - name: Check metadata (META_OK)
+        id: meta
         if: env.FILES_OK == 'true'
         run: |
           python - <<'EOF'
-          import json, os, sys
-          m = json.load(open("oktmo_meta.json", encoding="utf-8"))
-          publish_allowed = m.get("publish_allowed", True)
-          critical = m.get("critical_errors") or []
-          warnings = m.get("warnings") or []
+          import gzip, hashlib, json, os, re
 
-          print(f"publish_allowed: {publish_allowed}")
-          print(f"critical_errors: {len(critical)}")
-          print(f"warnings:        {len(warnings)}")
+          with gzip.open("oktmo_meta.json.gz", "rt", encoding="utf-8") as f:
+              m = json.load(f)
+
+          ok = True
+          reasons = []
+
+          # 1. publish_allowed
+          if m.get("publish_allowed") is not True:
+              ok = False
+              reasons.append(f"publish_allowed={m.get('publish_allowed')}")
+
+          # 2. critical_errors
+          ce = m.get("critical_errors")
+          if ce:
+              ok = False
+              reasons.append(f"critical_errors={ce}")
+
+          # 3. records_count > 0
+          rc = m.get("records_count")
+          if not isinstance(rc, int) or rc <= 0:
+              ok = False
+              reasons.append(f"records_count={rc}")
+
+          # 4. data_hash_full — 64 hex-символа
+          declared_full = m.get("data_hash_full") or ""
+          declared_short = m.get("data_hash") or ""
+          if not declared_full:
+              ok = False
+              reasons.append("data_hash_full отсутствует в мете")
+          elif not re.fullmatch(r"[0-9a-f]{64}", str(declared_full)):
+              ok = False
+              reasons.append(f"data_hash_full невалидный: {declared_full}")
+
+          # 5. data_hash == data_hash_full[:16] (§3.1) — блокирует
+          if declared_short and declared_full and declared_short != declared_full[:16]:
+              ok = False
+              reasons.append(
+                  f"data_hash != data_hash_full[:16]: short={declared_short} full_prefix={declared_full[:16]}"
+              )
+
+          # 6. Информационная сверка sha256(oktmo.json.gz) с data_hash_full — НЕ блокирует.
+          #    Семантика data_hash_full в ОКТМО пока не подтверждена окончательно
+          #    (в OKZ подтвердили и подняли до блокирующей; в остальных — warning).
+          if declared_full:
+              try:
+                  with gzip.open("oktmo.json.gz", "rb") as f:
+                      content = f.read()
+                  actual_full = hashlib.sha256(content).hexdigest()
+                  if declared_full == actual_full:
+                      print(f"✓ sha256(oktmo.json) == data_hash_full ({actual_full[:16]}…)")
+                  else:
+                      print(f"  ⚠ sha256(oktmo.json)={actual_full[:16]}… != data_hash_full={declared_full[:16]}… (информационно, не блокирует)")
+              except Exception as e:
+                  print(f"  ⚠ не удалось сверить sha256(oktmo.json): {e}")
+
+          # Информационная статистика для лога
           print(f"current_change:  {m.get('current_change')}")
           print(f"change_display:  {m.get('change_display')}")
           print(f"records_count:   {m.get('records_count')}")
-          print(f"data_hash:       {m.get('data_hash')}")
-          print(f"data_hash_full:  {m.get('data_hash_full')}")
+          print(f"mo_count:        {m.get('mo_count')}")
+          print(f"settlement_count:{m.get('settlement_count')}")
+          print(f"subjects_count:  {m.get('subjects_count')}")
 
-          ok = bool(publish_allowed) and not critical
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
-              f.write(f"META_OK={'true' if ok else 'false'}\n")
-
-          if not ok:
-              print("::warning::Мета говорит о запрете публикации — коммит пропущен")
-              sys.exit(0)
-          print("OK: публикация разрешена")
+          if ok:
+              print("✓ META_OK: publish_allowed=true, critical_errors=[], records_count>0, data_hash == data_hash_full[:16]")
+              with open(os.environ["GITHUB_ENV"], "a") as env:
+                  env.write("META_OK=true\n")
+          else:
+              print("::error::Мета не прошла проверку:")
+              for r in reasons:
+                  print(f"  - {r}")
+              with open(os.environ["GITHUB_ENV"], "a") as env:
+                  env.write("META_OK=false\n")
           EOF
 
       - name: Commit and push changes
@@ -119,22 +170,20 @@ jobs:
         run: |
           git config --local user.email "github-actions@github.com"
           git config --local user.name "GitHub Actions"
-          git add oktmo.json oktmo.json.gz oktmo_meta.json oktmo_meta.json.gz
+          git add oktmo.json.gz oktmo_meta.json.gz
           if git diff --cached --quiet; then
             echo "✅ Изменений нет — данные уже актуальны"
-            exit 0
+          else
+            # SOURCE_DATE через gzip -d -c | python -c (без heredoc).
+            # Цепочка по §3.1: source_date → effective_date → prepared_date → generated_at → '?'.
+            # ОКТМО-специфика: source_date в мете = дата из имени data-*.csv (source_date_origin = filename_date).
+            # Коммит создаётся ТОЛЬКО при реальном изменении .gz (git diff --cached --quiet),
+            # поэтому нестабильная дата не даёт ежедневного шума — коммиты редки и осмысленны.
+            SOURCE_DATE=$(gzip -d -c oktmo_meta.json.gz | python -c "import sys, json; m=json.load(sys.stdin); print(m.get('source_date') or m.get('effective_date') or m.get('prepared_date') or m.get('generated_at') or '?')")
+            git commit -m "Auto-update: oktmo data (source ${SOURCE_DATE}) [skip ci]"
+            git push
+            echo "✅ Изменения запушены (source=${SOURCE_DATE})"
           fi
-
-          # §11: SOURCE_DATE одной строкой, цепочкой or, без heredoc
-          SOURCE_DATE=$(python -c "import json;m=json.load(open('oktmo_meta.json',encoding='utf-8'));print(m.get('source_date') or m.get('effective_date') or m.get('prepared_date') or m.get('generated_at') or '?')")
-          CHANGE_DISPLAY=$(python -c "import json;m=json.load(open('oktmo_meta.json',encoding='utf-8'));print(m.get('change_display') or '')")
-
-          echo "SOURCE_DATE=$SOURCE_DATE"
-          echo "CHANGE_DISPLAY=$CHANGE_DISPLAY"
-
-          git commit -m "Auto-update: OKTMO data (source $SOURCE_DATE) [skip ci]"
-          git push
-          echo "✅ Изменения запушены"
 
       - name: Trigger new notebook run (fire-and-forget, always)
         if: always()
